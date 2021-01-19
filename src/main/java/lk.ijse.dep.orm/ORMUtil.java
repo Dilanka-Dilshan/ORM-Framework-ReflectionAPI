@@ -7,6 +7,10 @@ import lk.ijse.dep.annotation.Id;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 
 public class ORMUtil {
@@ -15,10 +19,22 @@ public class ORMUtil {
         String password = dbproperties.getProperty("javax.persistence.password");
         String url = dbproperties.getProperty("javax.persistence.url");
         String driverClassName = dbproperties.getProperty("javax.persistence.jdbc.driver_class");
+        Connection connection = null;
+        String sqlScript = "";
 
         if (username == null || password == null || url == null || driverClassName == null) {
-//            throw new RuntimeException("Unable to intialize ORM Without Database Details");
+            throw new RuntimeException("Unable to intialize ORM Without Database Details");
         }
+
+        try {
+            Class.forName(driverClassName);
+            Connection connection = DriverManager.getConnection(url, username, password);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e)
+        }catch (SQLException throwables){
+            throw new RuntimeException("Failed to Connect",throwables);
+        }
+
 
         for (Class entity : entities) {
             boolean pk = false;
@@ -64,8 +80,17 @@ public class ORMUtil {
                 }
             }
             ddl += ");";
-            System.out.println(ddl);
+           sqlScript += ddl;
         }
+
+        try {
+            Statement stm = connection.createStatement();
+            stm.execute(sqlScript);
+            connection.close();
+        } catch (SQLException throwables) {
+            throw new RuntimeException("Failed to create tables", throwables);
+        }
+
 
     }
 }
